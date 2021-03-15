@@ -19,6 +19,7 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 library(dplyr)
 library(caret)
 library(kableExtra)
+library(ggplot2)
 ```
 
 
@@ -136,16 +137,21 @@ Pred_RF <- predict(Mod_RF, newdata= validation)
 ## Summary of the different models
 
 ```{r}
-Methods_summary <- matrix(c("Decision Trees", round(CM_CART$overall[1:4],4),
-                            "GBM",round(CM_GBM$overall[1:4],4), 
-                          "Random Forest",round(CM_RF$overall[1:4],4)), byrow = T, nr=3)
-colnames(Methods_summary) <- c("Model","Accuracy", "Kappa", "AccuracyLower","AccuracyUpper")
-
+Methods_summary <- as.data.frame(matrix(c("Decision Trees", round(CM_CART$overall[1:2],4),
+                            "GBM",round(CM_GBM$overall[1:2],4), 
+                          "Random Forest",round(CM_RF$overall[1:2],4)), byrow = T, nr=3))
+colnames(Methods_summary) <- c("Model","Accuracy", "Kappa")
+Methods_summary[2:3] <- apply(Methods_summary[2:3], 2, as.numeric)
+Methods_summary$Error <- round(1 - Methods_summary$Accuracy,4)
 Methods_summary %>% kbl() %>% kable_styling()
 ```
 
+```{r}
+ggplot(Methods_summary[,1:2], aes(x=Model, y=(Accuracy))) + 
+  geom_bar(stat = 'identity', aes(fill=Model))
+```
 
-
+From the table and the plot, we observe that the **error** for **Decision Trees** is around **48%**, **2%** for **GBM** and **0.4%** for **Random Forest**.
 
 ## Test dataset evaluation
 
