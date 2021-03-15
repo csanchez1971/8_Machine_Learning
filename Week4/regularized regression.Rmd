@@ -1,0 +1,300 @@
+---
+title: "Machine Learning - Week4"
+author: "Carlos Sanchez"
+date: "09/03/2021"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, root.dir = "~/R courses/8_Machine_Learning/Week4")
+```
+
+
+ 
+ 
+```{r}
+library(kernlab)
+library(caret)
+library(e1071)
+library(ggplot2)
+```
+
+
+#Regularized Regression
+
+```{r}
+library(ElemStatLearn)
+data(prostate)
+str(prostate)
+```
+
+
+```{r}
+samall = prostate[1:5,]
+lm(lpsa ~ . , data=samall)
+```
+
+
+# Combining predictors
+
+```{r}
+library(ISLR)
+data(Wage)
+Wage <- subset(Wage, select = -c(logwage))
+```
+
+
+```{r}
+inBuild <- createDataPartition(y=Wage$wage, p=0.7, list=FALSE)
+validation <- Wage[-inBuild, ]
+buildData <- Wage[inBuild, ]
+
+inTrain <- createDataPartition(y=buildData$wage, p=0.7, list=FALSE)
+training <- buildData[inTrain, ]
+testing <- buildData[-inTrain, ]
+```
+
+
+
+```{r}
+mod1 <- train(wage ~ ., method = "glm", data = training)
+mod2 <- train(wage ~ ., method = "rf", data = training, 
+              trControl = trainControl(method = "cv"), number = 3)
+```
+
+
+```{r}
+pred1 <- predict(mod1, testing)
+pred2 <- predict(mod2, testing)
+
+qplot(pred1, pred2, color = wage, data = testing)
+```
+
+
+
+```{r}
+predDF <- data.frame(pred1, pred2, wage=testing$wage)
+combModFit <- train(wage ~ ., method = "gam", data = predDF)
+combPred <- predict(combModFit, predDF)
+```
+
+
+```{r}
+pred1V <- predict(mod1, validation)
+pred2V <- predict(mod2, validation)
+predVDF <- data.frame(pred1=pred1V, pred2 = pred2V)
+combPredV <- predict(combModFit, predVDF)
+```
+
+
+#Forescasting
+
+```{r}
+library(quantmod)
+from.dat <- as.Date("01/01/08", format = "%m%d%y")
+to.dat <- as.Date("12/31/13", format = "%m%d%y")
+getSymbols("GOOG", src = "google", from = from.dat, to = to.dat)
+```
+
+
+```{r}
+mGoog <- to.monthly(GOOG)
+googOpen <- Op(mGoog)
+ts1 <- ts(googOpen, frequency = 12)
+plot(ts1, xlab="Years+1", ylab = "GOOG")
+```
+
+
+
+```{r}
+ts1Train <- window(ts1, start=1, end=5)
+ts1Test <- window(ts1, start=5, end(7-0.01))
+ts1Train
+```
+
+
+
+# QUIZ 4
+
+
+```{r}
+library(caret)
+library(ElemStatLearn)
+library(AppliedPredictiveModeling)
+library(pgmm)
+library(rpart)
+library(gbm)
+library(lubridate)
+library(forecast)
+library(e1071)
+```
+
+
+
+```{r}
+data(vowel.train)
+data(vowel.test)
+vowel.train$y <- as.factor(vowel.train$y)
+vowel.test$y <- as.factor(vowel.test$y)
+```
+
+
+```{r}
+set.seed(33833)
+mod1 <- train(y ~ ., method = "rf", data = vowel.train)
+mod2 <- train(y ~ ., method = "gbm", data = vowel.train,verbose=FALSE)
+
+```
+
+
+
+```{r}
+pred1 <- predict(mod1, vowel.test)
+pred2 <- predict(mod2, vowel.test)
+
+```
+
+```{r}
+confusionMatrix(pred1, vowel.test$y)
+confusionMatrix(pred2, vowel.test$y)
+```
+
+
+
+```{r}
+confusionMatrix(pred1, pred2)
+```
+
+
+## Question 2
+
+```{r}
+library(caret)
+
+library(gbm)
+
+set.seed(3433)
+
+library(AppliedPredictiveModeling)
+
+data(AlzheimerDisease)
+
+adData = data.frame(diagnosis,predictors)
+
+inTrain = createDataPartition(adData$diagnosis, p = 3/4)[[1]]
+
+training = adData[ inTrain,]
+
+testing = adData[-inTrain,]
+```
+
+
+
+```{r}
+set.seed(62433)
+mod1 <- train(diagnosis ~ ., method = "rf", data = training)
+mod2 <- train(diagnosis ~ ., method = "gbm", data = training, verbose=FALSE)
+mod3 <- train(diagnosis ~ ., method = "lda", data = training)
+
+```
+
+
+```{r}
+pred1 <- predict(mod1, testing)
+pred2 <- predict(mod2, testing)
+pred3 <- predict(mod3, testing)
+```
+
+
+```{r}
+predDF <- data.frame(pred1, pred2, pred3, diagnosis=testing$diagnosis)
+combModFit <- train(diagnosis ~ ., method = "rf", data = predDF)
+combPred <- predict(combModFit, predDF)
+```
+
+
+
+```{r}
+confusionMatrix(combPred, testing$diagnosis)
+```
+
+
+## Question 3
+
+```{r}
+set.seed(3523)
+
+library(AppliedPredictiveModeling)
+library(elasticnet)
+data(concrete)
+
+inTrain = createDataPartition(concrete$CompressiveStrength, p = 3/4)[[1]]
+
+training = concrete[ inTrain,]
+
+testing = concrete[-inTrain,]
+```
+
+
+
+```{r}
+set.seed(233)
+mod1 <- train(CompressiveStrength ~ ., method = "lasso", data = training)
+plot.enet(mod1$finalModel, xvar = "penalty", use.color = TRUE)
+
+```
+
+## Question 4 
+
+
+```{r}
+library(lubridate) # For year() function below
+
+dat <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/gaData.csv")
+
+training = dat[year(dat$date) < 2012,]
+testing = dat[(year(dat$date)) > 2011,]
+tstrain = ts(training$visitsTumblr)
+```
+
+
+```{r}
+mod0 <- bats(tstrain)
+plot(mod0,xlab="time", ylab="visits")
+```
+
+
+
+```{r}
+fcast <- forecast(mod0, h=nrow(testing))
+plot(fcast)
+```
+
+
+```{r}
+fcast_lower95 = fcast$lower[,2]
+fcast_upper95 = fcast$upper[,2]
+table( (testing$visitsTumblr>fcast_lower95) & (testing$visitsTumblr<fcast_upper95) )
+```
+
+## Question 5
+
+
+```{r}
+set.seed(3523)
+library(AppliedPredictiveModeling)
+data(concrete)
+inTrain = createDataPartition(concrete$CompressiveStrength, p = 3/4)[[1]]
+training = concrete[ inTrain,]
+testing = concrete[-inTrain,]
+```
+
+
+```{r}
+set.seed(325)
+modFit<-svm(CompressiveStrength~., data=training)
+predict_svm<-predict(modFit, testing)
+accuracy(predict_svm, testing$CompressiveStrength)
+```
+

@@ -1,0 +1,339 @@
+---
+title: "Machine Learning - Week3"
+author: "Carlos Sanchez"
+date: "09/03/2021"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("~/R courses/8_Machine_Learning/Week3")
+```
+ 
+ 
+```{r}
+library(kernlab)
+library(caret)
+library(e1071)
+library(ggplot2)
+```
+
+
+#Predicting with Trees
+
+```{r}
+data(iris)
+names(iris)
+table(iris$Species)
+```
+
+
+```{r}
+inTrain <- createDataPartition(y=iris$Species,
+                               p=0.7, list = FALSE)
+training <- iris[inTrain, ]
+testing <- iris[-inTrain, ]
+dim(training)
+dim(testing)
+```
+
+
+```{r}
+qplot(Petal.Width, Sepal.Width, color=Species, data = training)
+```
+
+
+```{r}
+modFit <- train(Species ~ ., method ="rpart", data = training)
+print(modFit$finalModel)
+```
+
+
+```{r}
+plot(modFit$finalModel, uniform=TRUE,
+     main = "Classification Tree")
+text(modFit$finalModel, use.n = TRUE, cex = .8)
+```
+
+
+```{r}
+library(rattle)
+fancyRpartPlot(modFit$finalModel)
+```
+
+
+```{r}
+predict(modFit, newdata = testing)
+```
+
+
+```{r}
+confusionMatrix(predict(modFit, newdata = testing), testing$Species)
+```
+
+
+#Bagging (Bootstrap aggregating)
+
+```{r}
+library("ElemStatLearn")
+
+data(ozone, package = "ElemStatLearn")
+ozone <- ozone[order(ozone$ozone), ]
+head(ozone)
+```
+
+
+```{r}
+ll <- matrix(NA, nrow = 10, ncol = 155)
+for(i in 1:10){
+  ss <- sample(1:dim(ozone)[1], replace = T)
+  ozone0 <- ozone[ss,]
+  ozone0 <- ozone0[order(ozone0$ozone), ]
+  loess0 <- loess(temperature ~ ozone, data = ozone0, span = 0.2)
+  ll[i,] <- predict(loess0, newdata = data.frame(ozone=1:155))
+  
+}
+```
+
+
+```{r}
+plot(ozone$ozone, ozone$temperature, pch=19, cex=0.5)
+for(i in 1:10){lines(1:155, ll[i,], col="grey", lwd=2)}
+lines(1:155, apply(ll, 2, mean), col="red", lwd=2)
+```
+
+
+# Random Forests
+
+```{r}
+data(iris)
+inTrain <- createDataPartition(y=iris$Species, p=0.7, list = FALSE)
+training <- iris[inTrain, ]
+testing <- iris[-inTrain, ]
+```
+
+
+```{r}
+modFit <- train(Species ~ ., data = training, method = "rf", prox = TRUE)
+modFit
+```
+
+
+```{r}
+library(randomForest)
+
+getTree(modFit$finalModel, k=2)
+```
+
+
+```{r}
+pred <- predict(modFit, newdata=testing)
+testing$predRight <- pred==testing$Species
+table(pred, testing$Species)
+```
+
+
+```{r}
+qplot(Petal.Width, Petal.Length, color=predRight, data = testing, main = "newdata Predictions")
+```
+
+
+#Boosting
+
+```{r}
+library(ISLR)
+data(Wage)
+
+Wage <- subset(Wage, select= -c(logwage))   #Remoe variable repeated with log
+inTrain <- createDataPartition(Wage$wage, p=0.7, list=FALSE)
+training <- Wage[inTrain, ]
+testing <- Wage[-inTrain, ]
+```
+
+
+```{r}
+modFit <- train(wage ~ ., method ="gbm", data = training, verbose=FALSE)
+print(modFit)
+```
+
+
+```{r}
+qplot(predict(modFit, newdata=testing), wage, data = testing)
+```
+
+
+# Model Based prediction
+
+```{r}
+inTrain <- createDataPartition(y=iris$Species, p=0.7, list = FALSE)
+training <- iris[inTrain, ]
+testing <- iris[-inTrain, ]
+```
+
+
+```{r}
+modlda <- train(Species ~ ., data = training, method = "lda")  # lda discriminant analysis
+modlnb <- train(Species ~ ., data = training, method = "nb")   # Naive Bayes (supose independent variables)
+
+plda <- predict(modlda, newdata=testing)
+pnb <- predict(modlnb, newdata=testing)
+table(plda, pnb)
+```
+
+
+```{r}
+equalPredictions = (plda==pnb)
+qplot(Petal.Width, Sepal.Width, color=equalPredictions, data = testing)
+```
+
+
+Quiz
+
+```{r}
+library(AppliedPredictiveModeling)
+data(segmentationOriginal)
+```
+
+
+```{r}
+inTrain <- createDataPartition(y=segmentationOriginal$Case, p=0.7, list = FALSE)
+training <- segmentationOriginal[inTrain, ]
+testing <- segmentationOriginal[-inTrain, ]
+```
+
+
+```{r}
+set.seed(125)
+modFit <- train(Class ~ ., data = training, method = "rpart")
+# predict(modFit, newdata = data.frame(c(TotalIntench2 = 23000, FiberWidthCh1 = 10, PerimStatusCh1=2)))
+fancyRpartPlot(modFit$finalModel)
+
+
+```
+
+
+```{r}
+library(pgmm)
+data(olive)
+olive = olive[,-1]
+```
+
+
+```{r}
+inTrain <- createDataPartition(y=olive$Area, p=0.7, list = FALSE)
+training <- olive[inTrain, ]
+testing <- olive[-inTrain, ]
+```
+
+
+```{r}
+modFit <- train(Area ~ ., data = olive, method ="rpart")
+predict(modFit, newdata = as.data.frame(t(colMeans(olive))))
+```
+
+
+```{r}
+library(ElemStatLearn)
+data(SAheart)
+set.seed(8484)
+train = sample(1:dim(SAheart)[1],size=dim(SAheart)[1]/2,replace=F)
+trainSA = SAheart[train,]
+testSA = SAheart[-train,]
+```
+
+
+```{r}
+library(ElemStatLearn)
+data(vowel.train)
+data(vowel.test)
+```
+
+```{r}
+vowel.test$y <- as.factor(vowel.test$y)
+vowel.train$y <- as.factor(vowel.train$y)
+
+set.seed(33833)
+
+modFit <- train(y ~ ., vowel.train, method = "rf")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

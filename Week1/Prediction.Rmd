@@ -1,0 +1,111 @@
+---
+title: "Prediction"
+author: "Carlos Sanchez"
+date: "04/03/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("~/R courses/8_Machine_Learning/Week1")
+```
+ 
+ 
+```{r}
+library(kernlab)
+data(spam)
+head(spam)
+```
+
+
+```{r}
+plot(density(spam$your[spam$type=="nonspam"]),
+     col="blue", main="", xlab="Frequency of 'your'")
+lines(density(spam$your[spam$type=="spam"]), col="red")
+abline(v=0.5, col="black")
+```
+
+
+```{r}
+prediction <- ifelse(spam$your > 0.5, "spam", "nonspam")
+table(prediction, spam$type)/length(spam$type)
+```
+
+
+```{r}
+set.seed(333)
+smallSpam <- spam[sample(dim(spam)[1], size=10),]
+spamLabel <- (smallSpam$type=="spam")*1 +1
+plot(smallSpam$capitalAve, col = spamLabel)
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+

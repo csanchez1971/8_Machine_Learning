@@ -1,0 +1,178 @@
+---
+title: "Machine Learning - Peer-graded assignment"
+author: "Carlos Sanchez"
+date: "15/03/2021"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    theme: united
+    toc_float: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+```
+
+```{r libraries, include=FALSE}
+library(dplyr)
+library(caret)
+library(kableExtra)
+```
+
+
+```{r dataLoad, include=FALSE}
+training <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", row.names = 1)
+testing <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", row.names = 1)
+```
+
+# Human Activity Recognition
+
+## ABSTRACT
+
+Research on activity recognition has traditionally focused on discriminating between different activities, i.e. to predict “which” activity was performed at a specific point in time.
+
+The quality of executing an activity, the “how (well)”, has only received little attention so far, even though it potentially provides useful information for a large variety of applications. In this work it has been defined quality of execution and investigated three aspects that pertain to qualitative activity recognition: specifying correct execution, detecting execution mistakes, providing feedback on the to the user. In two user studies were tried out a sensor- and a model-based approach to qualitative activity recognition.
+
+Results underline the potential of model-based assessment and the positive impact of real-time user feedback on the quality of execution.
+
+Link to the original project:  [Human Activity Recognition](http://groupware.les.inf.puc-rio.br/har)
+
+
+## Exploratory Analysis
+
+On a first step, data has been analyzed to see if it needs to be reduced since we have `r ncol(training)` columns. We see, if we have a look at the head of the dataset, that there are many variables where most of the values are `NA` or " ", so we will try to identify how many of them are on each variable:
+
+
+```{r data_Exploration}
+head(training, c(2,4))
+dim(training)
+NA_missing <- apply(training, 2, function(x) sum(is.na(x)|x==""))
+```
+
+
+Since most of the variables have around 19216 missing or NA values, we will remove them and use as a predictor the variables where we have a full set of data. We will also remove the first 4 columns of the dataset corresponding to the user's name and timestamp since they are variables that won't affect the final model. Finally we convert into a factor the `classe` variable:
+
+
+```{r data_cleaning}
+training_clean <- training[ , NA_missing < 19000]
+training_clean <- training_clean[-c(1:4)]
+training_clean$classe <- as.factor(training_clean$classe)
+```
+
+
+Once cleaned the dataset, we proceed to apply several machine learning models to predict the values on the `test` dataset. The first step is to divide the training dataset into `training` and `validation` that will help us to evaluate the performance of the different models before doing  the inference to the test dataset.
+
+
+```{r split_dataset}
+inTrain <- createDataPartition(y=training_clean$classe, p=0.7, list=FALSE)
+training <- training_clean[inTrain, ]
+validation <- training_clean[-inTrain, ]
+```
+
+
+
+## Training the model
+
+We will use 3 different training models: **Classification and Regression Trees (CART0)**, **Generalized Boosting Model (GMB)** and **Random Forest (RF)**.
+
+
+### Classification and Regression Trees (`CART`)
+
+In this model, data is classified using decision trees for each of the selected variables.
+
+```{r CART_Mod, cache=TRUE}
+set.seed(123)
+CART <- train(classe ~ ., data = training, method = "rpart")
+```
+
+```{r CART_Pred}
+Pred_CART <- predict(CART, newdata = validation)
+(CM_CART <- confusionMatrix(Pred_CART, validation$classe))
+```
+
+
+
+### Generalized Boosting Regression Model with Trees (`GBM`)
+
+These models are a combination of two techniques: decision tree algorithms and boosting methods. Generalized Boosting Models repeatedly fit many decision trees to improve the accuracy of the model. For each new tree in the model, a random subset of all the data is selected using the boosting method.
+
+For this method we will use a 10-Fold cross-validation.
+
+```{r gbm}
+fitControl <- trainControl(method = "repeatedcv", 
+                           number = 10)
+
+set.seed(123)
+Mod_gbm <- train(classe ~ ., data = training, 
+                 method = "gbm",  
+                 trControl = fitControl,
+                 verbose =FALSE)
+```
+
+```{r Pred_gbm, cache=TRUE}
+Pred_GBM <- predict(Mod_gbm, newdata = validation)
+(CM_GBM <- confusionMatrix(Pred_GBM, validation$classe))
+```
+
+
+### Random Forest
+
+**Random forests** are an ensemble learning method for classification, regression and other tasks that operate by constructing a multitude of decision trees at training time and outputting the class that is the mode of the classes (classification) or mean/average prediction (regression) of the individual trees.
+
+
+```{r Mod_RF, cache=TRUE}
+set.seed(123)
+Mod_RF <- train(classe ~ ., data = training, method = "rf")
+```
+
+```{r Pred_RF, cache=TRUE}
+Pred_RF <- predict(Mod_RF, newdata= validation)
+(CM_RF <- confusionMatrix(Pred_RF, validation$classe))
+```
+
+
+## Summary of the different models
+
+```{r}
+Methods_summary <- matrix(c("Decision Trees", round(CM_CART$overall[1:4],4),
+                            "GBM",round(CM_GBM$overall[1:4],4), 
+                          "Random Forest",round(CM_RF$overall[1:4],4)), byrow = T, nr=3)
+colnames(Methods_summary) <- c("Model","Accuracy", "Kappa", "AccuracyLower","AccuracyUpper")
+
+Methods_summary %>% kbl() %>% kable_styling()
+```
+
+
+
+
+## Test dataset evaluation
+
+Once trained and tested the model with the training/validation datasets, we will inference the `classe` values for the 20 values at test dataset. Since both, Random Forest and GBM are similar in Accuracy, close to 100%, we will use them both for the classification.
+
+
+```{r}
+(Pred_test_RF <- predict(Mod_RF, newdata = testing))
+(Pred_test_GBM <- predict(Mod_gbm, newdata = testing))
+
+```
+
+
+As we can observe, with this two models we have identical results.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
