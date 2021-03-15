@@ -9,6 +9,7 @@ output:
     theme: united
     toc_float: true
     number_sections: true
+    keep_md: yes
 ---
 
 ```{r setup, include=FALSE}
